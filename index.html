@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ダイス勝率計算ツール</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .input-group {
+            margin: 15px 0;
+        }
+        label {
+            display: inline-block;
+            width: 120px;
+            text-align: right;
+        }
+        input {
+            padding: 5px;
+            width: 100px;
+            margin-left: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #333;
+        }
+        p {
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <h1>ダイス勝率計算ツール</h1>
+    <p>6面ダイスの数、攻撃力、相手のダイス、相手のパワーを入力してください。<br>
+       ダイスの出目（1～6を100倍した値）の合計に攻撃力を加えたものが、<br>
+       相手のパワー（＋相手のダイス数に応じた追加値）を超える確率を計算します。</p>
+    <div class="input-group">
+        <label for="diceCount">ダイスの数: </label>
+        <input type="number" id="diceCount" min="1" value="1">
+    </div>
+    <div class="input-group">
+        <label for="attackPower">攻撃力: </label>
+        <input type="number" id="attackPower" min="0" value="0">
+    </div>
+    <div class="input-group">
+        <label for="opponentDice">相手のダイス: </label>
+        <input type="number" id="opponentDice" min="0" value="0">
+    </div>
+    <div class="input-group">
+        <label for="opponentPower">相手のパワー: </label>
+        <input type="number" id="opponentPower" min="0" value="100">
+    </div>
+    <button onclick="calculateProbability()">確率を計算</button>
+    <div id="result"></div>
+
+    <script>
+        function calculateProbability() {
+            const diceCount = parseInt(document.getElementById('diceCount').value);
+            const attackPower = parseInt(document.getElementById('attackPower').value);
+            const opponentDice = parseInt(document.getElementById('opponentDice').value);
+            const opponentPower = parseInt(document.getElementById('opponentPower').value);
+            const resultDiv = document.getElementById('result');
+
+            // 入力値の検証
+            if (isNaN(diceCount) || isNaN(attackPower) || isNaN(opponentDice) || isNaN(opponentPower) ||
+                diceCount < 1 || attackPower < 0 || opponentDice < 0 || opponentPower < 0) {
+                resultDiv.innerHTML = '正しい数値を入力してください（ダイスの数: 1以上、攻撃力: 0以上、相手のダイス: 0以上、相手のパワー: 0以上）。';
+                return;
+            }
+
+            // 相手のダイス数に応じたパワー追加値
+            const dicePowerMap = {
+                1: 300,
+                2: 700,
+                3: 1100,
+                4: 1400,
+                5: 1700,
+                6: 2000
+            };
+            let additionalPower = 0;
+            if (opponentDice >= 1 && opponentDice <= 6) {
+                additionalPower = dicePowerMap[opponentDice];
+            } else if (opponentDice > 6) {
+                additionalPower = dicePowerMap[6]; // 6以上の場合は6の値を使用
+            }
+            const totalOpponentPower = opponentPower + additionalPower;
+
+            // ダイスの出目は100倍（100, 200, ..., 600）
+            const diceMultiplier = 100;
+            const maxDiceValue = 6 * diceMultiplier;
+            const maxSum = diceCount * maxDiceValue;
+
+            // 動的計画法でダイスの合計値の分布を計算
+            const dp = new Array(maxSum + 1).fill(0);
+            dp[0] = 1;
+
+            for (let i = 0; i < diceCount; i++) {
+                const newDp = new Array(maxSum + 1).fill(0);
+                for (let sum = 0; sum <= maxSum; sum++) {
+                    if (dp[sum] === 0) continue;
+                    for (let face = 1; face <= 6; face++) {
+                        const nextSum = sum + face * diceMultiplier;
+                        if (nextSum <= maxSum) {
+                            newDp[nextSum] += dp[sum];
+                        }
+                    }
+                }
+                dp.splice(0, dp.length, ...newDp);
+            }
+
+            // ダイスの合計 + 攻撃力が相手のパワー（+追加値）を超える確率を計算
+            let favorableOutcomes = 0;
+            for (let diceSum = 0; diceSum <= maxSum; diceSum++) {
+                if (dp[diceSum] === 0) continue;
+                if (diceSum + attackPower > totalOpponentPower) {
+                    favorableOutcomes += dp[diceSum];
+                }
+            }
+
+            const totalOutcomes = Math.pow(6, diceCount);
+            const probability = (favorableOutcomes / totalOutcomes) * 100;
+
+            resultDiv.innerHTML = `ダイス ${diceCount} 個（出目100倍）+ 攻撃力 ${attackPower} で<br>` +
+                                 `相手のパワー ${opponentPower}（+相手のダイス ${opponentDice} による ${additionalPower}）= ${totalOpponentPower} を超える確率: ${probability.toFixed(2)}%`;
+        }
+    </script>
+</body>
+</html>
