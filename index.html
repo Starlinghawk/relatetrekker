@@ -48,14 +48,45 @@
         p {
             line-height: 1.5;
         }
+        #customSettings {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+        #customSettings.show {
+            display: block;
+        }
+        .custom-input-group {
+            margin: 5px 0;
+        }
+        .custom-input-group label {
+            width: 150px;
+        }
+        #toggleCustom {
+            font-size: 0.8em;
+            padding: 5px 10px;
+            background-color: #e0e0e0;
+            color: #333;
+            border: none;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        #toggleCustom:hover {
+            background-color: #d0d0d0;
+        }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <h1>ダイス勝率計算ツール</h1>
     <p>6面ダイスの数、自分のパワー、相手のダイス、相手のパワーを入力してください。<br>
-       ダイスの出目（1～6を100倍した値）の合計に自分のパワー（＋Jmofボーナス）を加えたものが、<br>
+       ダイスの出目（1～6を100倍した値）の合計に自分のパワー（＋Jmofボーナス300）を加えたものが、<br>
        相手のパワー（＋相手のダイス数に応じた追加値）に対して同値以上になる確率と、<br>
-       超える確率（防御時）を計算します。</p>
+       超える確率（防御時）を計算します。カスタム設定で相手のダイス追加値を変更可能。</p>
     <div class="input-group">
         <label for="diceCount">ダイスの数: </label>
         <input type="number" id="diceCount" min="1" value="1">
@@ -77,9 +108,45 @@
         <input type="number" id="opponentPower" min="0" value="100">
     </div>
     <button onclick="calculateProbability()">確率を計算</button>
+    <button id="toggleCustom" onclick="toggleCustomSettings()">カスタム設定を変更</button>
+    <div id="customSettings">
+        <h3>相手のダイス追加値（カスタム）</h3>
+        <p>空欄の場合、デフォルト値（1=300, 2=700, 3=1100, 4=1400, 5=1700, 6=2000）が使用されます。</p>
+        <div class="custom-input-group">
+            <label for="customDice1">ダイス1の追加値: </label>
+            <input type="number" id="customDice1" min="0" placeholder="300">
+        </div>
+        <div class="custom-input-group">
+            <label for="customDice2">ダイス2の追加値: </label>
+            <input type="number" id="customDice2" min="0" placeholder="700">
+        </div>
+        <div class="custom-input-group">
+            <label for="customDice3">ダイス3の追加値: </label>
+            <input type="number" id="customDice3" min="0" placeholder="1100">
+        </div>
+        <div class="custom-input-group">
+            <label for="customDice4">ダイス4の追加値: </label>
+            <input type="number" id="customDice4" min="0" placeholder="1400">
+        </div>
+        <div class="custom-input-group">
+            <label for="customDice5">ダイス5の追加値: </label>
+            <input type="number" id="customDice5" min="0" placeholder="1700">
+        </div>
+        <div class="custom-input-group">
+            <label for="customDice6">ダイス6の追加値: </label>
+            <input type="number" id="customDice6" min="0" placeholder="2000">
+        </div>
+    </div>
     <div id="result"></div>
 
     <script>
+        function toggleCustomSettings() {
+            const customSettings = document.getElementById('customSettings');
+            customSettings.classList.toggle('show');
+            const toggleButton = document.getElementById('toggleCustom');
+            toggleButton.textContent = customSettings.classList.contains('show') ? 'カスタム設定を閉じる' : 'カスタム設定を変更';
+        }
+
         function calculateProbability() {
             const diceCount = parseInt(document.getElementById('diceCount').value);
             const ownPower = parseInt(document.getElementById('ownPower').value);
@@ -87,6 +154,7 @@
             const opponentDice = parseInt(document.getElementById('opponentDice').value);
             const opponentPower = parseInt(document.getElementById('opponentPower').value);
             const resultDiv = document.getElementById('result');
+            const toggleCustomButton = document.getElementById('toggleCustom');
 
             // 入力値の検証
             if (isNaN(diceCount) || isNaN(ownPower) || isNaN(opponentDice) || isNaN(opponentPower) ||
@@ -95,12 +163,15 @@
                 return;
             }
 
+            // 「カスタム設定を変更」ボタンを非表示に
+            toggleCustomButton.classList.add('hidden');
+
             // Jmofボーナス: チェックボックスがオンなら+300
             const jmofBonus = jmofChecked ? 300 : 0;
             const totalOwnPower = ownPower + jmofBonus;
 
-            // 相手のダイス数に応じたパワー追加値
-            const dicePowerMap = {
+            // デフォルトの相手のダイス追加値
+            const defaultDicePowerMap = {
                 1: 300,
                 2: 700,
                 3: 1100,
@@ -108,11 +179,20 @@
                 5: 1700,
                 6: 2000
             };
+
+            // カスタム追加値を取得
+            const customDicePowerMap = {};
+            for (let i = 1; i <= 6; i++) {
+                const customValue = parseInt(document.getElementById(`customDice${i}`).value);
+                customDicePowerMap[i] = isNaN(customValue) || customValue < 0 ? defaultDicePowerMap[i] : customValue;
+            }
+
+            // 相手のダイス数に応じたパワー追加値
             let additionalPower = 0;
             if (opponentDice >= 1 && opponentDice <= 6) {
-                additionalPower = dicePowerMap[opponentDice];
+                additionalPower = customDicePowerMap[opponentDice];
             } else if (opponentDice > 6) {
-                additionalPower = dicePowerMap[6]; // 6以上の場合は6の値を使用
+                additionalPower = customDicePowerMap[6]; // 6以上の場合は6の値を使用
             }
             const totalOpponentPower = opponentPower + additionalPower;
 
