@@ -241,16 +241,12 @@
             // Jmofがオンの場合、ゾロ目確率を計算
             let zoroProbability = 0;
             if (jmofChecked && diceCount >= 2) {
-                let zoroOutcomes = 0;
-                // 各出目（1～6）について、2個以上のゾロ目の場合を計算
-                for (let face = 1; face <= 6; face++) {
-                    for (let count = 2; count <= diceCount; count++) {
-                        // 組み合わせ: C(diceCount, count) * 5^(diceCount - count)
-                        const combinations = factorial(diceCount) / (factorial(count) * factorial(diceCount - count));
-                        const remainingDiceOutcomes = Math.pow(5, diceCount - count); // ゾロ目以外のダイスは他の5面
-                        zoroOutcomes += combinations * remainingDiceOutcomes;
-                    }
+                // ゾロ目なし（すべての出目が異なる）の確率を計算し、補集合を取る
+                let noZoroOutcomes = 1;
+                for (let i = 0; i < diceCount; i++) {
+                    noZoroOutcomes *= (6 - i);
                 }
+                const zoroOutcomes = totalOutcomes - noZoroOutcomes;
                 zoroProbability = (zoroOutcomes / totalOutcomes) * 100;
             }
 
@@ -262,12 +258,6 @@
                                  `同値以上になる確率: ${probabilityEqualOrGreater.toFixed(2)}%<br>` +
                                  `超える確率（防御時）: ${probabilityGreater.toFixed(2)}%` +
                                  (jmofChecked && diceCount >= 2 ? `<br>ゾロ目（2個以上）の確率: ${zoroProbability.toFixed(2)}%` : '');
-
-            // 階乗計算関数
-            function factorial(n) {
-                if (n === 0 || n === 1) return 1;
-                return n * factorial(n - 1);
-            }
         }
     </script>
 </body>
