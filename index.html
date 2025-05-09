@@ -86,7 +86,8 @@
     <p>6面ダイスの数、自分のパワー、相手のダイス、相手のパワーを入力してください。<br>
        ダイスの出目（1～6を100倍した値）の合計に自分のパワー（＋Jmofボーナス300）を加えたものが、<br>
        相手のパワー（＋相手のダイス数に応じた追加値）に対して同値以上になる確率と、<br>
-       超える確率（防御時）を計算します。カスタム設定で相手のダイス追加値を変更可能。</p>
+       超える確率（防御時）を計算します。Jmof有効時はゾロ目確率も表示。<br>
+       カスタム設定で相手のダイス追加値を変更可能。</p>
     <div class="input-group">
         <label for="diceCount">ダイスの数: </label>
         <input type="number" id="diceCount" min="1" value="1">
@@ -108,7 +109,6 @@
         <input type="number" id="opponentPower" min="0" value="100">
     </div>
     <button onclick="calculateProbability()">確率を計算</button>
-    <button id="toggleCustom" onclick="toggleCustomSettings()">カスタム設定を変更</button>
     <div id="customSettings">
         <h3>相手のダイス追加値（カスタム）</h3>
         <p>空欄の場合、デフォルト値（1=300, 2=700, 3=1100, 4=1400, 5=1700, 6=2000）が使用されます。</p>
@@ -138,6 +138,7 @@
         </div>
     </div>
     <div id="result"></div>
+    <button id="toggleCustom" onclick="toggleCustomSettings()">カスタム設定を変更</button>
 
     <script>
         function toggleCustomSettings() {
@@ -163,7 +164,7 @@
                 return;
             }
 
-            // 「カスタム設定を変更」ボタンを非表示に
+            // 「カスタム設定を変更」ボタンを非表示
             toggleCustomButton.classList.add('hidden');
 
             // Jmofボーナス: チェックボックスがオンなら+300
@@ -237,12 +238,36 @@
             const probabilityEqualOrGreater = (favorableOutcomesEqualOrGreater / totalOutcomes) * 100;
             const probabilityGreater = (favorableOutcomesGreater / totalOutcomes) * 100;
 
+            // Jmofがオンの場合、ゾロ目確率を計算
+            let zoroProbability = 0;
+            if (jmofChecked && diceCount >= 2) {
+                let zoroOutcomes = 0;
+                // 各出目（1～6）について、2個以上のゾロ目の場合を計算
+                for (let face = 1; face <= 6; face++) {
+                    for (let count = 2; count <= diceCount; count++) {
+                        // 組み合わせ: C(diceCount, count) * 5^(diceCount - count)
+                        const combinations = factorial(diceCount) / (factorial(count) * factorial(diceCount - count));
+                        const remainingDiceOutcomes = Math.pow(5, diceCount - count); // ゾロ目以外のダイスは他の5面
+                        zoroOutcomes += combinations * remainingDiceOutcomes;
+                    }
+                }
+                zoroProbability = (zoroOutcomes / totalOutcomes) * 100;
+            }
+
+            // 結果表示
             resultDiv.innerHTML = `ダイス ${diceCount} 個（出目100倍）+ 自分のパワー ${ownPower}` +
                                  (jmofBonus > 0 ? `（+Jmof ${jmofBonus}）` : '') +
                                  ` = ${totalOwnPower} で<br>` +
                                  `相手のパワー ${opponentPower}（+相手のダイス ${opponentDice} による ${additionalPower}）= ${totalOpponentPower} に対して<br>` +
-                                 `同値以上になる確率: ${probabilityEqualOrGreater.toFixed(2)}%<br>` +
-                                 `超える確率（防御時）: ${probabilityGreater.toFixed(2)}%`;
+                                 `���値以上になる確率: ${probabilityEqualOrGreater.toFixed(2)}%<br>` +
+                                 `超える確率（防御時）: ${probabilityGreater.toFixed(2)}%` +
+                                 (jmofChecked && diceCount >= 2 ? `<br>ゾロ目（2個以上）の確率: ${zoroProbability.toFixed(2)}%` : '');
+
+            // 階乗計算関数
+            function factorial(n) {
+                if (n === 0 || n === 1) return 1;
+                return n * factorial(n - 1);
+            }
         }
     </script>
 </body>
